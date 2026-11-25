@@ -1,0 +1,161 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    function isValidNoteProgress(data, userId, noteId) {
+      return data.userId is string && data.userId == userId &&
+             data.noteId is string && data.noteId == noteId &&
+             data.unitId is string && data.unitId.size() >= 1 && data.unitId.size() <= 32 &&
+             data.bookmarked is bool &&
+             data.mastered is bool &&
+             (!('personalNote' in data) || (data.personalNote is string && data.personalNote.size() <= 2000)) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidTestAttempt(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.mode in ['MOCK', 'PRACTICE', 'AI_QUIZ'] &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 140 &&
+             data.unitFilter is string && data.unitFilter.size() >= 1 && data.unitFilter.size() <= 64 &&
+             data.score is int && data.score >= -300 && data.score <= 300 &&
+             data.maxScore is int && data.maxScore >= 1 && data.maxScore <= 300 &&
+             data.correctCount is int && data.correctCount >= 0 && data.correctCount <= 75 &&
+             data.wrongCount is int && data.wrongCount >= 0 && data.wrongCount <= 75 &&
+             data.unattemptedCount is int && data.unattemptedCount >= 0 && data.unattemptedCount <= 75 &&
+             data.durationSeconds is int && data.durationSeconds >= 0 && data.durationSeconds <= 7200 &&
+             (!('unitAccuracySummary' in data) || (data.unitAccuracySummary is string && data.unitAccuracySummary.size() <= 1000)) &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    function isValidNotebookLink(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+             data.url is string && data.url.size() >= 10 && data.url.size() <= 500 && data.url.matches('^https://.*') &&
+             data.unitTag is string && data.unitTag.size() >= 1 && data.unitTag.size() <= 40 &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 400)) &&
+             data.pinned is bool &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidSavedAiNote(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.mode in ['EXPLAIN', 'MNEMONIC', 'TIMELINE', 'COMPARISON'] &&
+             data.topic is string && data.topic.size() >= 1 && data.topic.size() <= 160 &&
+             data.unitTag is string && data.unitTag.size() >= 1 && data.unitTag.size() <= 40 &&
+             data.content is string && data.content.size() >= 1 && data.content.size() <= 8000 &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    match /users/{userId} {
+      allow get, list, create, update, delete: if false;
+
+      match /noteProgress/{noteId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(noteId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(noteId) &&
+                         incoming().keys().hasAll(['userId', 'noteId', 'unitId', 'bookmarked', 'mastered', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'noteId', 'unitId', 'bookmarked', 'mastered', 'personalNote', 'createdAt', 'updatedAt']) &&
+                         isValidNoteProgress(incoming(), userId, noteId);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(noteId) &&
+                         isValidNoteProgress(incoming(), userId, noteId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().noteId == existing().noteId &&
+                         incoming().unitId == existing().unitId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['bookmarked', 'mastered', 'personalNote', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(noteId);
+      }
+
+      match /testAttempts/{attemptId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(attemptId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(attemptId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'mode', 'title', 'unitFilter', 'score', 'maxScore',
+                           'correctCount', 'wrongCount', 'unattemptedCount', 'durationSeconds', 'createdAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'mode', 'title', 'unitFilter', 'score', 'maxScore',
+                           'correctCount', 'wrongCount', 'unattemptedCount', 'durationSeconds',
+                           'unitAccuracySummary', 'createdAt'
+                         ]) &&
+                         isValidTestAttempt(incoming(), userId);
+
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(attemptId);
+      }
+
+      match /notebookLinks/{linkId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(linkId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(linkId) &&
+                         incoming().keys().hasAll(['userId', 'title', 'url', 'unitTag', 'pinned', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'title', 'url', 'unitTag', 'description', 'pinned', 'createdAt', 'updatedAt']) &&
+                         isValidNotebookLink(incoming(), userId);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(linkId) &&
+                         isValidNotebookLink(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'url', 'unitTag', 'description', 'pinned', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(linkId);
+      }
+
+      match /savedAiNotes/{cardId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(cardId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(cardId) &&
+                         incoming().keys().hasAll(['userId', 'mode', 'topic', 'unitTag', 'content', 'createdAt']) &&
+                         incoming().keys().hasOnly(['userId', 'mode', 'topic', 'unitTag', 'content', 'createdAt']) &&
+                         isValidSavedAiNote(incoming(), userId);
+
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(cardId);
+      }
+    }
+  }
+}

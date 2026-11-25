@@ -1,0 +1,6 @@
+{
+  "name": "LAQP01 Scholar",
+  "description": "CUET PG English (LAQP01) study companion with comprehensive 7-unit notes, PYQs, practice quizzes, timed mock tests, NotebookLM vault, and inbuilt AI assistant.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

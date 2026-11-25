@@ -1,0 +1,210 @@
+{
+  "entities": {
+    "NoteProgress": {
+      "title": "NoteProgress",
+      "description": "Tracks user bookmark, mastery status, and personal annotation for a LAQP01 study note.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated owner UID."
+        },
+        "noteId": {
+          "type": "string",
+          "description": "Identifier of the study note matching the document ID."
+        },
+        "unitId": {
+          "type": "string",
+          "description": "LAQP01 syllabus unit identifier."
+        },
+        "bookmarked": {
+          "type": "boolean",
+          "description": "Whether the note is bookmarked by the user."
+        },
+        "mastered": {
+          "type": "boolean",
+          "description": "Whether the user marked this note as mastered."
+        },
+        "personalNote": {
+          "type": "string",
+          "description": "Optional user study note text."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when created (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when last updated (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": ["userId", "noteId", "unitId", "bookmarked", "mastered", "createdAt", "updatedAt"]
+    },
+    "TestAttempt": {
+      "title": "TestAttempt",
+      "description": "Immutable record of a completed mock test, practice drill, or AI-generated quiz.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated owner UID."
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["MOCK", "PRACTICE", "AI_QUIZ"],
+          "description": "Assessment mode."
+        },
+        "title": {
+          "type": "string",
+          "description": "Display title of the test or quiz."
+        },
+        "unitFilter": {
+          "type": "string",
+          "description": "Target unit or Full Syllabus label."
+        },
+        "score": {
+          "type": "integer",
+          "description": "Total score computed using +4/-1 NTA marking."
+        },
+        "maxScore": {
+          "type": "integer",
+          "description": "Maximum achievable marks."
+        },
+        "correctCount": {
+          "type": "integer",
+          "description": "Number of correct answers."
+        },
+        "wrongCount": {
+          "type": "integer",
+          "description": "Number of incorrect answers."
+        },
+        "unattemptedCount": {
+          "type": "integer",
+          "description": "Number of unattempted questions."
+        },
+        "durationSeconds": {
+          "type": "integer",
+          "description": "Time spent in seconds."
+        },
+        "unitAccuracySummary": {
+          "type": "string",
+          "description": "Optional summary of per-unit accuracy."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when submitted (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "mode",
+        "title",
+        "unitFilter",
+        "score",
+        "maxScore",
+        "correctCount",
+        "wrongCount",
+        "unattemptedCount",
+        "durationSeconds",
+        "createdAt"
+      ]
+    },
+    "NotebookLink": {
+      "title": "NotebookLink",
+      "description": "A bookmarked Google NotebookLM URL organized by LAQP01 unit.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated owner UID."
+        },
+        "title": {
+          "type": "string",
+          "description": "Notebook title."
+        },
+        "url": {
+          "type": "string",
+          "description": "HTTPS URL pointing to the NotebookLM notebook."
+        },
+        "unitTag": {
+          "type": "string",
+          "description": "Syllabus unit tag for grouping."
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional short description of sources in this notebook."
+        },
+        "pinned": {
+          "type": "boolean",
+          "description": "Whether the notebook link is pinned to the top."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when created (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when last updated (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": ["userId", "title", "url", "unitTag", "pinned", "createdAt", "updatedAt"]
+    },
+    "SavedAiNote": {
+      "title": "SavedAiNote",
+      "description": "Saved AI tutor explanation, mnemonic, timeline, or author comparison card.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated owner UID."
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["EXPLAIN", "MNEMONIC", "TIMELINE", "COMPARISON"],
+          "description": "Type of AI study card."
+        },
+        "topic": {
+          "type": "string",
+          "description": "Topic or question prompt."
+        },
+        "unitTag": {
+          "type": "string",
+          "description": "Relevant LAQP01 unit tag."
+        },
+        "content": {
+          "type": "string",
+          "description": "AI-generated study note content."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when saved (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": ["userId", "mode", "topic", "unitTag", "content", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/noteProgress/{noteId}": {
+      "schema": { "$ref": "#/entities/NoteProgress" },
+      "description": "Per-user note bookmarks, mastery toggles, and personal annotations."
+    },
+    "/users/{userId}/testAttempts/{attemptId}": {
+      "schema": { "$ref": "#/entities/TestAttempt" },
+      "description": "Per-user mock test and quiz attempt records."
+    },
+    "/users/{userId}/notebookLinks/{linkId}": {
+      "schema": { "$ref": "#/entities/NotebookLink" },
+      "description": "Per-user Google NotebookLM bookmark vault."
+    },
+    "/users/{userId}/savedAiNotes/{cardId}": {
+      "schema": { "$ref": "#/entities/SavedAiNote" },
+      "description": "Per-user saved AI study cards."
+    }
+  }
+}
